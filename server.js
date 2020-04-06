@@ -4,8 +4,11 @@ var passport = require('passport');
 var authJwtController = require('./auth_jwt');
 var User = require('./Users');
 var Movie = require('./Movies');
+var Review = require('./Reviews');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
+var mongoose = require('mongoose');
+
 
 
 var app = express();
@@ -16,38 +19,99 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.use(passport.initialize());
 
-// hey
 
 var router = express.Router();
+
+//********************************* MOVIES ROUTING *********************************
 
 router.route('/movies')
     .post(authJwtController.isAuthenticated, function (req, res) {
         console.log(req.body);
+
+        //check if query was  sent with request
+
+        var createReview;
+
+        if(req.query.reviews === "true"){
+            createReview = true;
+        }
+
+        //if ?reviews = true I will check if request has required fields
+
+        if (createReview){
+
+            if(!req.body.reviewerName || !req.body.quote || !req.body.rating){
+                return res.json({success: false, message: 'Error,  Empty Reviewer Name, rating, and/or Quote fields.'});
+            }
+
+        }
+
+        //checking if req has proper key value pairs for movie creation
+
         if (!req.body.title || !req.body.releaseDate || !req.body.genre) {
-            res.json({success: false, message: 'Error,  Empty fields.'});
+            return res.json({success: false, message: 'Error,  Empty fields.'});
         }
-        else if(!req.body.actors[0] || !req.body.actors[1]|| !req.body.actors[2]){
+        if(!req.body.actors[0] || !req.body.actors[1]|| !req.body.actors[2]){
 
-            res.json({success: false, message: 'Error,  Less than 3 actors.'});
+            return res.json({success: false, message: 'Error,  Less than 3 actors.'});
 
         }
-        else {
-            var movie = new Movie();
-            movie.title = req.body.title;
-            console.log(movie.title);
-            movie.releaseDate = req.body.releaseDate;
-            console.log(movie.releaseDate)
-            movie.genre = req.body.genre;
-            console.log(movie.genre);
-            movie.actors = req.body.actors;
+
+        //manually creating _id
+        var movieID = mongoose.Types.ObjectId();
+        //console.log('movieid:'+ movieID);
+
+        //creating and saving movie doc
+        Movie.create({ _id: movieID, title: req.body.title, releaseDate: req.body.releaseDate, genre: req.body.genre, actors: req.body.actors}, function (err) {
+            if(err){
+                console.log('Error Inserting New Data');
+
+                if (err.name == 'ValidationError') {
+                    for (field in err.errors) {
+                        console.log(err.errors[field].message);
+                    }
+                }
+                // duplicate entry
+                if (err.code == 11000)
+                    return res.json({success: false, message: 'The movie is not unique. '});
+                else
+                    return res.send(err);
+            }
+            else{
+                console.log("movie "  + req.body.title  + " saved.");
+            }
+        });
+
+        //if query reviews = true it will also create a review doc and saves it.
+        if(createReview){
+
+            //making review object
+            var  review = new Review();
+            review.reviewerName = req.body.reviewerName;
+            review.quote = req.body.quote;
+            review.rating = req.body.rating;
 
 
-            // save the movie
-            movie.save(function(err) {
+            //getting auth info from JWT token
+            const usertoken = req.headers.authorization;
+            const token = usertoken.split(' ');
+            const decoded = jwt.verify(token[1], process.env.SECRET_KEY);
+            console.log(decoded);
+            review.username = decoded.username;
+            //review.reviewerName = decoded.name;
+            review.userId = mongoose.Types.ObjectId( decoded.id);
+
+            //getting movie id from manual creation and assigning to review object
+            review.movieId = movieID;
+
+
+            //saving review doc
+            review.save(function(err) {
 
                 if (err) {
 
                     console.log('Error Inserting New Data');
+
                     if (err.name == 'ValidationError') {
                         for (field in err.errors) {
                             console.log(err.errors[field].message);
@@ -55,14 +119,23 @@ router.route('/movies')
                     }
                     // duplicate entry
                     if (err.code == 11000)
-                        return res.json({ success: false, message: 'A Movie with that title already exists. '});
+                        return res.json({success: false, message: 'The Review is not unique. '});
                     else
                         return res.send(err);
                 }
+                else{
+                    return res.json({ success: true, message: 'Movie created and review.' })
+                }
+            })
 
-                res.json({ success: true, message: 'Movie created.' });
-            });
+
         }
+        else{
+
+            return res.json({ success: true, message: 'Movie created.' });
+        }
+
+
 
     })
     .put(authJwtController.isAuthenticated, function (req, res) {
@@ -82,11 +155,17 @@ router.route('/movies')
 
         Movie.findOneAndUpdate(filter, args, function(err, result) {
             if (err) {
-                res.send(err);
+                return res.json({ success: false, message: 'Update error.' })
             }
             else {
-                res.json({ success: true, message: 'Movie Updated.' });
+
+                if(result !== null) {
+                    return res.json({ success: true, message: 'Movie Updated.' });
+                } else {
+                    return res.json({ success: false, message: 'Movie not found.' })
+                }
             }
+
         });
 
     })
@@ -113,17 +192,200 @@ router.route('/movies')
     .get(authJwtController.isAuthenticated, function (req, res) {
         console.log(req.body);
 
+        var getReview;
+
+        if(req.query.reviews === "true"){
+            getReview = true;
+        }
+
         Movie.find(function (err, movie) {
         if(err){
             res.send(err);
         }
         else{
-            res.json(movie);
+
+            if(getReview){
+
+                Movie.aggregate([
+                    {$match:{}},
+                    {
+                        $lookup:{
+                            from: 'reviews',
+                            foreignField: 'id',
+                            localField: 'movieId',
+                            as: 'Reviews'
+                        }
+                    },
+                    {
+                        $sort:{
+
+                            rating : -1
+
+                        }
+                    }
+                ], function (err, output) {
+                    if(err){
+                        return res.json({ success: false, message: 'Aggregation Error' })
+                    }
+                    else{
+                        res.json(output);
+                    }
+
+                })
+            }
+            else{
+                res.json(movie);
+            }
+
         }
         })
 
     });
+//get movies by their id
+router.route('/movies/:movieId')
+    .get(authJwtController.isAuthenticated, function (req, res) {
+        console.log(req.body);
+        console.log("here");
 
+        var getReview;
+
+        if(req.query.reviews === "true"){
+            getReview = true;
+        }
+
+        var id = req.params.movieId;
+
+        Movie.findById( id, function(err, movie) {
+            if (err) res.send(err);
+            else{
+
+                if(getReview){
+
+                    Movie.aggregate([
+                        {
+                            $match: {'_id': mongoose.Types.ObjectId(id)}
+                        },
+                        {
+                            $lookup:{
+                                from: 'reviews',
+                                foreignField: 'id',
+                                localField: 'movieId',
+                                as: 'Reviews'
+                            }
+                        },
+                        {
+                            $sort:{
+
+                                rating : -1
+
+                            }
+                        }
+                    ], function (err, output) {
+                        if(err){
+                            return res.json({ success: false, message: 'Aggregation Error' })
+                        }
+                        else{
+                            res.json(output);
+                        }
+
+                    })
+                }
+                else{
+
+                    if(movie !== null) {
+                        return res.json(movie);
+                    } else {
+                        return res.json({ success: false, message: 'Movie not found.' })
+                    }
+                }
+
+            }
+        });
+    });
+
+//********************************* REVIEWS ROUTING *********************************
+
+router.route('/reviews')
+    .get(authJwtController.isAuthenticated, function (req, res) {
+        console.log(req.body);
+
+        Review.find(function (err, review) {
+            if(err){
+                res.send(err);
+            }
+            else{
+                res.json(review);
+            }
+        })
+    })
+    .post(authJwtController.isAuthenticated, function(req,res){
+        console.log(req.body);
+
+        if( !req.body.reviewerName || !req.body.quote || !req.body.rating || !req.body.movieId){
+
+            return res.json({success: false, message: 'Error,  Empty Reviewer Name, movieId, rating, and/or Quote fields.'});
+
+        }
+
+        Movie.findById(req.body.movieId, function (err, movie) {
+
+            if(err){
+                return res.json({success: false, message: 'Error finding movie.'});
+            }
+            else{
+                if(movie === null){
+                    return res.json({success: false, message: 'Error, Movie not found.'});
+                }
+                else{
+
+                    var review = new Review();
+
+                    review.reviewerName = req.body.reviewerName;
+                    review.quote = req.body.quote;
+                    review.rating = req.body.rating;
+                    review.movieId = req.body.movieId;
+
+
+                    const usertoken = req.headers.authorization;
+                    const token = usertoken.split(' ');
+                    const decoded = jwt.verify(token[1], process.env.SECRET_KEY);
+                    console.log(decoded);
+                    review.username = decoded.username;
+                    review.userId = mongoose.Types.ObjectId( decoded.id);
+
+                    review.save(function(err) {
+
+                        if (err) {
+
+                            console.log('Error Inserting New Data');
+
+                            if (err.name == 'ValidationError') {
+                                for (field in err.errors) {
+                                    console.log(err.errors[field].message);
+                                }
+                            }
+                            // duplicate entry
+                            if (err.code == 11000)
+                                return res.json({success: false, message: 'The Review is not unique. '});
+                            else
+                                return res.send(err);
+                        }
+                        else{
+                            return res.json({ success: true, message: 'Review saved.' })
+                        }
+                    })
+
+                }
+            }
+
+        });
+
+    });
+
+
+
+
+//********************************* USERS ROUTING AND AUTH *********************************
 router.route('/postjwt')
     .post(authJwtController.isAuthenticated, function (req, res) {
             console.log(req.body);
@@ -182,6 +444,9 @@ router.post('/signup', function(req, res) {
 });
 
 router.post('/signin', function(req, res) {
+
+    console.log(req.body);
+
     var userNew = new User();
     //userNew.name = req.body.name;
     userNew.username = req.body.username;
@@ -190,16 +455,23 @@ router.post('/signin', function(req, res) {
     User.findOne({ username: userNew.username }).select('name username password').exec(function(err, user) {
         if (err) res.send(err);
 
-        user.comparePassword(userNew.password, function(isMatch){
-            if (isMatch) {
-                var userToken = {id: user._id, username: user.username};
-                var token = jwt.sign(userToken, process.env.SECRET_KEY);
-                res.json({success: true, token: 'JWT ' + token});
-            }
-            else {
-                res.status(401).send({success: false, message: 'Authentication failed.'});
-            }
-        });
+        try{
+            user.comparePassword(userNew.password, function(isMatch){
+                if (isMatch) {
+                    var userToken = {id: user._id, username: user.username};
+                    var token = jwt.sign(userToken, process.env.SECRET_KEY);
+                    res.json({success: true, token: 'JWT ' + token});
+                }
+                else {
+                    res.status(401).send({success: false, message: 'Authentication failed.'});
+                }
+            })
+        }
+        catch{
+            res.status(401).send({success: false, message: 'Authentication failed. User not known'}) //user not know  for debugging purposes
+        }
+
+
 
 
     });
