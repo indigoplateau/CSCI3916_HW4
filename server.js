@@ -253,19 +253,25 @@ router.route('/movies')
                             from: 'reviews',
                             foreignField: 'movieId',
                             localField: '_id',
-                            as: 'Reviews'
+                            as: 'reviews'
+
+                        }
+                    },
+                    {
+                        $addFields: {
+                            avgRating: { $avg: "$reviews.rating" }
                         }
                     },
                     {
                         $sort:{
 
-                            rating : -1
+                            avgRating : -1
 
                         }
                     }
                 ], function (err, output) {
                     if(err){
-                        return res.json({ success: false, message: 'Aggregation Error' })
+                        return res.json(err)
                     }
                     else{
                         res.json(output);
@@ -285,7 +291,7 @@ router.route('/movies')
 router.route('/movies/:movieId')
     .get(authJwtController.isAuthenticated, function (req, res) {
         console.log(req.body);
-        console.log("here");
+        //console.log("here");
 
         var getReview;
 
@@ -310,7 +316,12 @@ router.route('/movies/:movieId')
                                 from: 'reviews',
                                 foreignField: 'id',
                                 localField: 'movieId',
-                                as: 'Reviews'
+                                as: 'reviews'
+                            }
+                        },
+                        {
+                            $addFields: {
+                                avgRating: { $avg: "$Reviews.rating" }
                             }
                         },
                         {

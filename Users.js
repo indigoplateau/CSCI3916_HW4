@@ -5,7 +5,15 @@ var bcrypt = require('bcrypt-nodejs');
 
 mongoose.Promise = global.Promise;
 
-mongoose.connect(process.env.DB, { useNewUrlParser: true } );
+mongoose
+    .connect(process.env.DB, {
+        useUnifiedTopology: true,
+        useNewUrlParser: true,
+    })
+    .then(() => console.log('Users DB Connected!'))
+    .catch(err => {
+        console.log("Users DB Connection Error" + err.message);
+    });
 mongoose.set('useCreateIndex', true);
 
 // user schema
