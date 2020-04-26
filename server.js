@@ -314,8 +314,8 @@ router.route('/movies/:movieId')
                         {
                             $lookup:{
                                 from: 'reviews',
-                                foreignField: 'id',
-                                localField: 'movieId',
+                                foreignField: 'movieId',
+                                localField: '_id',
                                 as: 'reviews'
                             }
                         },
@@ -336,7 +336,7 @@ router.route('/movies/:movieId')
                             return res.json({ success: false, message: 'Aggregation Error' })
                         }
                         else{
-                            res.json(output);
+                            res.json(output[0]);
                         }
 
                     })
@@ -372,7 +372,7 @@ router.route('/reviews')
     .post(authJwtController.isAuthenticated, function(req,res){
         console.log(req.body);
 
-        if( !req.body.reviewerName || !req.body.quote || !req.body.rating || !req.body.movieId){
+        if( !req.body.quote || !req.body.rating || !req.body.movieId){
 
             return res.json({success: false, message: 'Error,  Empty Reviewer Name, movieId, rating, and/or Quote fields.'});
 
@@ -391,7 +391,6 @@ router.route('/reviews')
 
                     var review = new Review();
 
-                    review.reviewerName = req.body.reviewerName;
                     review.quote = req.body.quote;
                     review.rating = req.body.rating;
                     review.movieId = req.body.movieId;
