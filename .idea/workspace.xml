@@ -11,8 +11,6 @@
   <component name="ChangeListManager">
     <list default="true" id="d9ee19f9-cc16-478b-9ef6-92d5d45bbb3c" name="Default" comment="dependencies">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Reviews.js" beforeDir="false" afterPath="$PROJECT_DIR$/Reviews.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/server.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -110,7 +108,7 @@
       <workItem from="1587083352753" duration="277000" />
       <workItem from="1587342311258" duration="5343000" />
       <workItem from="1587493359172" duration="103000" />
-      <workItem from="1587664493035" duration="12874000" />
+      <workItem from="1587664493035" duration="14250000" />
     </task>
     <task id="LOCAL-00001" summary="dependencies">
       <created>1587343209460</created>
@@ -130,10 +128,10 @@
     <option name="LAST_COMMIT_MESSAGE" value="dependencies" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="303" y="52" key="CommitChangelistDialog2" timestamp="1587875322371">
+    <state x="303" y="52" key="CommitChangelistDialog2" timestamp="1588209156357">
       <screen x="0" y="0" width="1440" height="900" />
     </state>
-    <state x="303" y="52" key="CommitChangelistDialog2/0.0.1440.900@0.0.1440.900" timestamp="1587875322371" />
+    <state x="303" y="52" key="CommitChangelistDialog2/0.0.1440.900@0.0.1440.900" timestamp="1588209156357" />
     <state width="1419" height="295" key="GridCell.Tab.0.bottom" timestamp="1587875516386">
       <screen x="0" y="0" width="1440" height="900" />
     </state>
